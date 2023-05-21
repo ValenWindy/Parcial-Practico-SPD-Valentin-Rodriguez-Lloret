@@ -1,0 +1,290 @@
+// Valentin Rodriguez Lloret - División D - Parcial Práctico
+
+
+// Configuración de pines
+#define botonSubir A0
+#define botonBajar A1
+#define botonPausar A2
+#define ledVerde 13
+#define ledRojo 12
+#define display_A 9
+#define display_B 8
+#define display_C 5
+#define display_D 6
+#define display_E 7
+#define display_F 10
+#define display_G 11
+
+// Definición de constantes
+const int cantidadPisos = 10;
+const int tiempoPisos = 3000;
+const int tiempoEntrePisos = tiempoPisos / 2;
+
+// Variables globales
+int pisoActual = 0;
+int pisoObjetivo = 0;
+int ultimoPiso = -1;
+bool subiendo = false;
+bool bajando = false;
+bool pausado = false;
+bool movimientoIniciado = false;
+bool mensajeImpreso = false; // Variable para controlar si el mensaje ya se ha impreso
+
+// Variables de estado de los botones
+bool subirPresionado = false;
+bool bajarPresionado = false;
+bool pausarPresionado = false;
+
+
+void setup() {
+  // Configuración de pines de entrada y salida
+  pinMode(botonSubir, INPUT_PULLUP);
+  pinMode(botonBajar, INPUT_PULLUP);
+  pinMode(botonPausar, INPUT_PULLUP);
+
+  pinMode(ledVerde, OUTPUT);
+  pinMode(ledRojo, OUTPUT);
+
+  pinMode(display_A, OUTPUT);
+  pinMode(display_B, OUTPUT);
+  pinMode(display_C, OUTPUT);
+  pinMode(display_D, OUTPUT);
+  pinMode(display_E, OUTPUT);
+  pinMode(display_F, OUTPUT);
+  pinMode(display_G, OUTPUT);
+
+  Serial.begin(9600);
+
+  digitalWrite(ledRojo, HIGH); // Encender el LED rojo al inicio
+
+  actualizarDisplay(pisoActual);
+}
+
+void loop() {
+  manejarPresionBotones();
+  manejarMovimiento();
+  actualizarLEDs();
+  actualizarDisplay(pisoActual);
+  imprimirEstado();
+}
+
+void manejarPresionBotones() {
+  // Verificar si el botón de subir ha sido presionado
+  if (digitalRead(botonSubir) == LOW && !subirPresionado) {
+    subirPresionado = true;
+    pisoObjetivo = 9;
+    if (pisoActual < pisoObjetivo) {
+      subiendo = true;
+      bajando = false;
+    } else if (pisoActual > pisoObjetivo) {
+      subiendo = false;
+      bajando = true;
+    }
+    movimientoIniciado = true;
+    mensajeImpreso = false;
+    digitalWrite(ledRojo, LOW); // Apagar el LED rojo al iniciar el movimiento
+  } else {
+    subirPresionado = false; // Restablecer el estado del botón
+  }
+
+  // Verificar si el botón de bajar ha sido presionado
+  if (digitalRead(botonBajar) == LOW && !bajarPresionado) {
+    bajarPresionado = true;
+    pisoObjetivo = 0;
+    if (pisoActual < pisoObjetivo) {
+      subiendo = true;
+      bajando = false;
+    } else if (pisoActual > pisoObjetivo) {
+      subiendo = false;
+      bajando = true;
+    }
+    movimientoIniciado = true;
+    mensajeImpreso = false;
+    digitalWrite(ledRojo, LOW); // Apagar el LED rojo al iniciar el movimiento
+  } else {
+    bajarPresionado = false; // Restablecer el estado del botón
+  }
+
+  // Verificar si el botón de pausar ha sido presionado
+  if (digitalRead(botonPausar) == LOW && !pausarPresionado) {
+    pausarPresionado = true;
+    pausado = !pausado; // Invertir el estado de pausado
+    subiendo = false;
+    bajando = false;
+    movimientoIniciado = false;
+    digitalWrite(ledVerde, pausado); // Encender o apagar el LED verde según el estado de pausado
+    digitalWrite(ledRojo, !pausado); // Encender o apagar el LED rojo según el estado de pausado
+    if (pausado) {
+      Serial.println("Ascensor pausado");
+    } else {
+      Serial.println("Ascensor reanudado");
+    }
+  } else {
+    pausarPresionado = false; // Restablecer el estado del botón
+  }
+  
+}
+
+void manejarMovimiento() {
+  if (!movimientoIniciado || pausado) {
+    return;
+  }
+
+  if (subiendo) {
+    if (pisoActual < pisoObjetivo) {
+      pisoActual++;
+      Serial.print("Ascensor subiendo. Piso actual: ");
+      Serial.println(pisoActual);
+      delay(tiempoEntrePisos);
+    } else {
+      detenerMovimiento();
+    }
+  }
+
+  if (bajando) {
+    if (pisoActual > pisoObjetivo) {
+      pisoActual--;
+      Serial.print("Ascensor bajando. Piso actual: ");
+      Serial.println(pisoActual);
+      delay(tiempoEntrePisos);
+    } else {
+      detenerMovimiento();
+    }
+  }
+}
+
+void detenerMovimiento() {
+  ultimoPiso = pisoActual;
+  Serial.print("Ascensor detenido en el piso: ");
+  Serial.println(pisoActual);
+  subiendo = false;
+  bajando = false;
+  movimientoIniciado = false;
+  digitalWrite(ledVerde, (!subiendo && !bajando) && !pausado); // Encender el LED verde al detener el movimiento
+  digitalWrite(ledRojo, HIGH); // Encender el LED rojo al detener el movimiento
+}
+
+void actualizarLEDs() {
+  digitalWrite(ledVerde, (subiendo || bajando) && !pausado);
+  digitalWrite(ledRojo, (!subiendo && !bajando) || pausado);
+}
+void actualizarDisplay(int piso) {
+  // Actualizar los segmentos del display de 7 segmentos según el piso
+  switch (piso) {
+    case 0:
+      digitalWrite(display_A, HIGH);
+      digitalWrite(display_B, HIGH);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, HIGH);
+      digitalWrite(display_E, HIGH);
+      digitalWrite(display_F, HIGH);
+      digitalWrite(display_G, LOW);
+      break;
+    case 1:
+      digitalWrite(display_A, LOW);
+      digitalWrite(display_B, HIGH);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, LOW);
+      digitalWrite(display_E, LOW);
+      digitalWrite(display_F, LOW);
+      digitalWrite(display_G, LOW);
+      break;
+    case 2:
+      digitalWrite(display_A, HIGH);
+      digitalWrite(display_B, HIGH);
+      digitalWrite(display_C, LOW);
+      digitalWrite(display_D, HIGH);
+      digitalWrite(display_E, HIGH);
+      digitalWrite(display_F, LOW);
+      digitalWrite(display_G, HIGH);
+      break;
+    case 3:
+      digitalWrite(display_A, HIGH);
+      digitalWrite(display_B, HIGH);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, HIGH);
+      digitalWrite(display_E, LOW);
+      digitalWrite(display_F, LOW);
+      digitalWrite(display_G, HIGH);
+      break;
+    case 4:
+      digitalWrite(display_A, LOW);
+      digitalWrite(display_B, HIGH);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, LOW);
+      digitalWrite(display_E, LOW);
+      digitalWrite(display_F, HIGH);
+      digitalWrite(display_G, HIGH);
+      break;
+    case 5:
+      digitalWrite(display_A, HIGH);
+      digitalWrite(display_B, LOW);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, HIGH);
+      digitalWrite(display_E, LOW);
+      digitalWrite(display_F, HIGH);
+      digitalWrite(display_G, HIGH);
+      break;
+    case 6:
+      digitalWrite(display_A, HIGH);
+      digitalWrite(display_B, LOW);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, HIGH);
+      digitalWrite(display_E, HIGH);
+      digitalWrite(display_F, HIGH);
+      digitalWrite(display_G, HIGH);
+      break;
+    case 7:
+      digitalWrite(display_A, HIGH);
+      digitalWrite(display_B, HIGH);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, LOW);
+      digitalWrite(display_E, LOW);
+      digitalWrite(display_F, LOW);
+      digitalWrite(display_G, LOW);
+      break;
+    case 8:
+      digitalWrite(display_A, HIGH);
+      digitalWrite(display_B, HIGH);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, HIGH);
+      digitalWrite(display_E, HIGH);
+      digitalWrite(display_F, HIGH);
+      digitalWrite(display_G, HIGH);
+      break;
+    case 9:
+      digitalWrite(display_A, HIGH);
+      digitalWrite(display_B, HIGH);
+      digitalWrite(display_C, HIGH);
+      digitalWrite(display_D, LOW);
+      digitalWrite(display_E, LOW);
+      digitalWrite(display_F, HIGH);
+      digitalWrite(display_G, HIGH);
+      break;
+    default:
+      // Si el piso no está en el rango del 0 al 9, apagar todos los segmentos
+      digitalWrite(display_A, LOW);
+      digitalWrite(display_B, LOW);
+      digitalWrite(display_C, LOW);
+      digitalWrite(display_D, LOW);
+      digitalWrite(display_E, LOW);
+      digitalWrite(display_F, LOW);
+      digitalWrite(display_G, LOW);
+      break;
+  }
+}
+
+void imprimirEstado() {
+  if (!mensajeImpreso) {
+    Serial.print("Piso actual: ");
+    Serial.println(pisoActual);
+    Serial.print("Piso objetivo: ");
+    Serial.println(pisoObjetivo);
+    if (ultimoPiso >= 0) {
+      Serial.print("Ultimo piso: ");
+      Serial.println(ultimoPiso);
+    }
+    Serial.println("--------------");
+    mensajeImpreso = true;
+  }
+}
