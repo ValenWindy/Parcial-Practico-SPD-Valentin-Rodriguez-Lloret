@@ -1,5 +1,6 @@
 // Valentin Rodriguez Lloret - División D - Parcial Práctico
 
+#include <Servo.h>
 
 // Configuración de pines
 #define botonSubir A0
@@ -14,11 +15,16 @@
 #define display_E 7
 #define display_F 10
 #define display_G 11
+#define servoPin 3
+Servo servo;
+#define fotorresistenciaPin A3
+#define sensorFlexion A4
 
 // Definición de constantes
 const int cantidadPisos = 10;
 const int tiempoPisos = 3000;
 const int tiempoEntrePisos = tiempoPisos / 2;
+const int umbralFlexion = 500;
 
 // Variables globales
 int pisoActual = 0;
@@ -34,6 +40,10 @@ bool mensajeImpreso = false; // Variable para controlar si el mensaje ya se ha i
 bool subirPresionado = false;
 bool bajarPresionado = false;
 bool pausarPresionado = false;
+
+// Variables fotorresistencia
+int valorFotorresistencia = 0;
+int valorFlexion = 0;
 
 
 void setup() {
@@ -52,6 +62,10 @@ void setup() {
   pinMode(display_E, OUTPUT);
   pinMode(display_F, OUTPUT);
   pinMode(display_G, OUTPUT);
+  
+  // Configuración del Servo
+  servo.attach(servoPin);
+    
 
   Serial.begin(9600);
 
@@ -62,12 +76,13 @@ void setup() {
 
 void loop() {
   manejarPresionBotones();
+  leerSensores();
   manejarMovimiento();
   actualizarLEDs();
   actualizarDisplay(pisoActual);
   imprimirEstado();
-}
-
+  
+ }
 void manejarPresionBotones() {
   // Verificar si el botón de subir ha sido presionado
   if (digitalRead(botonSubir) == LOW && !subirPresionado) {
@@ -125,13 +140,23 @@ void manejarPresionBotones() {
   
 }
 
+
+void leerSensores() {
+  valorFotorresistencia = analogRead(fotorresistenciaPin);
+  valorFlexion = analogRead(sensorFlexion);
+  
+}
 void manejarMovimiento() {
   if (!movimientoIniciado || pausado) {
     return;
   }
-
+  if (movimientoIniciado) {
   if (subiendo) {
     if (pisoActual < pisoObjetivo) {
+      if (pisoActual != ultimoPiso) {
+        moverServo();
+        ultimoPiso = pisoActual;
+      }
       pisoActual++;
       Serial.print("Ascensor subiendo. Piso actual: ");
       Serial.println(pisoActual);
@@ -140,9 +165,13 @@ void manejarMovimiento() {
       detenerMovimiento();
     }
   }
-
+  }
   if (bajando) {
     if (pisoActual > pisoObjetivo) {
+      if (pisoActual != ultimoPiso) {
+        moverServo();
+        ultimoPiso = pisoActual;
+      }
       pisoActual--;
       Serial.print("Ascensor bajando. Piso actual: ");
       Serial.println(pisoActual);
@@ -274,6 +303,14 @@ void actualizarDisplay(int piso) {
   }
 }
 
+  void moverServo() {
+    int angulo = map(pisoActual, 0, cantidadPisos -1, 0, 180);
+    servo.write(angulo);
+    delay(tiempoEntrePisos);
+  }
+
+void ajustarIluminacion (int valorFoto) {
+}
 void imprimirEstado() {
   if (!mensajeImpreso) {
     Serial.print("Piso actual: ");
